@@ -27,7 +27,7 @@ WORKDIR /openclaw
 
 # Pin to a known-good ref
 
-ARG OPENCLAW_GIT_REF=v2026.3.8
+ARG OPENCLAW_GIT_REF=v2026.2.5
 
 RUN git clone --depth 1 --branch "${OPENCLAW_GIT_REF}" https://github.com/openclaw/openclaw.git .
 
