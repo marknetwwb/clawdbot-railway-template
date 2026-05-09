@@ -1,120 +1,12 @@
-# =========================
-# Build openclaw from source
-# =========================
-FROM node:22-bookworm AS openclaw-build
-
-# Dependencies needed for openclaw build
-
-RUN apt-get update \
-&& DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    git \
-    ca-certificates \
-    curl \
-    python3 \
-    make \
-    g++ \
-&& rm -rf /var/lib/apt/lists/*
-
-# Install Bun (openclaw build uses it)
-
-RUN curl -fsSL https://bun.sh/install | bash
-
-ENV PATH="/root/.bun/bin:${PATH}"
-
-RUN corepack enable
-
-WORKDIR /openclaw
-
-# Pin to a known-good ref
-
-RUN git clone https://github.com/openclaw/openclaw.git . \
-    && git checkout 0f3e2c7d8b9a4d6f3c2b1e8f7a9d0c1b2e3f4a5b
-
-
-
-
-RUN git clone --depth 1 --branch "${OPENCLAW_GIT_REF}" https://github.com/openclaw/openclaw.git .
-
-# Patch workspace dependency issues
-
-RUN set -eux; \
-  find ./extensions -name 'package.json' -type f | while read -r f; do \
-    sed -i -E 's/"openclaw"[[:space:]]*:[[:space:]]*">=[^"]+\"/"openclaw": "*"/g' "$f"; \
-    sed -i -E 's/"openclaw"[[:space:]]*:[[:space:]]*"workspace:[^"]+\"/"openclaw": "*"/g' "$f"; \
-  done
-
-RUN pnpm install --no-frozen-lockfile
-
-RUN pnpm build
-
-ENV OPENCLAW_PREFER_PNPM=1
-
-RUN pnpm ui:install && pnpm ui:build
-
-# =========================
-# Runtime image
-# =========================
 FROM node:22-bookworm
-
-ENV NODE_ENV=production
-
-RUN apt-get update \
-&& DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    ca-certificates \
-    tini \
-    python3 \
-    python3-venv \
-&& rm -rf /var/lib/apt/lists/*
-
-# pnpm needed at runtime
-
-RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
-
-# Railway volume locations
-
-ENV NPM_CONFIG_PREFIX=/data/npm
-
-ENV NPM_CONFIG_CACHE=/data/npm-cache
-
-ENV PNPM_HOME=/data/pnpm
-
-ENV PNPM_STORE_DIR=/data/pnpm-store
-
-ENV PATH="/data/npm/bin:/data/pnpm:${PATH}"
 
 WORKDIR /app
 
-# Wrapper deps
-
 COPY package.json ./
+RUN npm install --omit=dev
 
-RUN npm install --omit=dev && npm cache clean --force
-
-# Copy built openclaw
-
-COPY --from=openclaw-build /openclaw /openclaw
-
-# Provide an openclaw executable
-
-RUN printf '%s\n' \
-  '#!/usr/bin/env bash' \
-  'exec node /openclaw/dist/entry.js "$@"' \
-> /usr/local/bin/openclaw \
-&& chmod +x /usr/local/bin/openclaw
-
-# Copy config into image
-
-COPY openclaw.json /config/openclaw.json
-
-# App source
-
-COPY src ./src
-
-# Railway injects PORT
+COPY . .
 
 EXPOSE 8080
 
-ENTRYPOINT ["tini", "--"]
-
-CMD ["openclaw", "start", "--allow-unconfigured"]
-
+CMD ["node", "server.js"]
