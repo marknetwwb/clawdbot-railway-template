@@ -112,4 +112,5 @@ EXPOSE 8080
 
 ENTRYPOINT ["tini", "--"]
 
-CMD ["node", "src/server.js"]
+CMD ["openclaw", "start", "--allow-unconfigured"]
+
