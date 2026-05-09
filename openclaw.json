@@ -1,0 +1,30 @@
+{
+
+  "agents": {
+
+    "defaults": {
+
+      "compaction": {
+
+        "mode": "safeguard",
+
+        "reserveTokensFloor": 2000
+
+      }
+
+    }
+
+  },
+
+  "channels": {
+
+    "telegram": {
+
+      "streaming": false
+
+    }
+
+  }
+
+}
+ 
